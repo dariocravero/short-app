@@ -3,10 +3,12 @@ require 'sinatra/base'
 class App < Sinatra::Base
   BASE_HOST         = ENV['BASE_HOST']    || 'http://s.uxtemple.com'
   CODE_LENGTH       = ENV['CODE_LENGTH']  || 3
+  # TODO Make it dependent on CODE_LENGTH
   CODE_HEX_PATTERN  = 0xfff
   CODE_REGEX        = /^[0-9a-z]{#{CODE_LENGTH}}$/i
 
   set :urls, {}
+  set :protection, except: :path_traversal
 
   get '/*' do
     uoc = params[:splat].first
@@ -31,7 +33,15 @@ class App < Sinatra::Base
     end
 
     def url_to_code url
-      code = code_from_url(url) || random_code while code.nil? || settings.urls.include?(code)
+      code = code_from_url url
+
+      if code.nil?
+        code = random_code
+        while settings.urls.include? code
+          code = random_code
+        end
+      end
+
       settings.urls[code] = url
       code
     end
@@ -40,6 +50,4 @@ class App < Sinatra::Base
       "%0#{CODE_LENGTH}x" % (rand * CODE_HEX_PATTERN)
     end
   end
-
-  run!
 end
